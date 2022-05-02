@@ -1,0 +1,5 @@
+CHIP
+    123 . NL 456 "Hello, World!" .s
+    swap .s drop .s . .s
+
+END
