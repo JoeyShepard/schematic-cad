@@ -15,6 +15,7 @@ global_symbols={}
 global_sizes={}
 global_x=0
 global_y=0
+global_pixels=10
 
 #Class definition
 class ChipClass:
@@ -111,6 +112,14 @@ def exec_word(word):
         _,tos=global_stack.pop()
         _,nos=global_stack.pop()
         global_stack.append(("number",int(nos/tos)))
+    elif word=="mid":
+        #Mid point between two values
+        check_args(word,2,[["number"],["number"]])
+        _,tos=global_stack.pop()
+        _,nos=global_stack.pop()
+        min_obj=min(tos,nos)
+        max_obj=max(tos,nos)
+        global_stack.append(min_obj+int((max_obj-min_obj)/2))
 
     #Misc words
     elif word=="def":
@@ -198,7 +207,7 @@ def exec_word(word):
         global_element.y=new_y-obj_val if word=="up" else new_y+obj_val
     elif word=="x":
         if global_element:
-            check_element(word,"x")
+            check_element(word)
             check_args(word,1,[["number"]])
             _,global_element.x=global_stack.pop()
         else:
@@ -206,7 +215,7 @@ def exec_word(word):
             _,global_x=global_stack.pop()
     elif word=="y":
         if global_element:
-            check_element(word,"y")
+            check_element(word)
             check_args(word,1,[["number"]])
             _,global_element.y=global_stack.pop()
         else:
@@ -334,5 +343,5 @@ elif global_element_stack:
 for i,chip in enumerate(global_chips):
     print(f"{i}: {global_chips[chip].debug()}")
 
-
+#TODO: output to SVG and/or PNG
 
