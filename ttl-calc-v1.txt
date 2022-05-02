@@ -1,5 +1,56 @@
-CHIP
-    123 . NL 456 "Hello, World!" .s
-    swap .s drop .s . .s
+;Tests
+;=====
+;123 . NL 456 "Hello, World!" .s
+;swap .s drop .s . .s
+;END
+;CHIP CHIP                              ;error - chip in chip not allowed
+;CHIP NAME                              ;error - no name on stack
+;CHIP 5 NAME                            ;error - wrong name type
+;CHIP "FOO" NAME 1 DOWN 2 RIGHT END     ;repositioning
+;CHIP "BAR" NAME 1 UP 2 LEFT END        ;repositioning
+;CHIP END                               ;error - chip without name
+;CHIP "A" NAME END CHIP "A" NAME END    ;error - chip already exists
+;5 "num" def "abc" "str" def num str .s ;defining symbols
+;123 "FoO" def fOo                      ;symbol names not case-sensitive
+;40 4 "74HCTEST" SIZE                   ;auto-generated package name
+;CHIP "FOO" NAME 
+;"74HCTEST" MODEL END
+;CHIP "FOO" NAME ""                     ;purposely blank package name
+;"74xx" MODEL PKG END
+;CHIP "FOO" NAME 2 DOWN 3 RIGHT END     ;cursor movement for next chip
+;CHIP "BAR" NAME 2 DOWN 3 RIGHT END
+;CHIP "FOO" NAME 1 X 2 Y END            ;chip placement
+;CHIP "FOO" NAME 6 X 7 Y 
+;10 width 5 height END                  ;size and shape attributes
+;FoO.left foo.right 
+;foo.top foo.bottom
+;foo.width foo.height
+;last.left last.right
+;last.top last.bottom
+;last.width last.height .s
+;1 2 + 9 4 - 3 7 * 7 3 /                ;arithmetic
 
+
+
+;Constants
+;=========
+2 "SPACING" DEF
+
+;Chip sizes
+;==========
+16 4 "74HC670" SIZE
+
+;Chip definitions
+;================
+3 X 3 Y
+
+CHIP
+    "Regs HI"   NAME
+    "74HC670"   MODEL
+END
+
+CHIP
+    "Regs LO"   NAME
+    "74HC670"   MODEL
+    last.right SPACING + X
 END
