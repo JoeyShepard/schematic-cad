@@ -29,31 +29,243 @@
 ;last.top last.bottom
 ;last.width last.height .s
 ;1 2 + 9 4 - 3 7 * 7 3 /                ;arithmetic
+;255 128 32 rgb .$                      ;colors
+;18 52 86 rgb
+;dup chip-color
+;dup wire-color
+;dup border-color
+;dup title-color
+;dup subtitle-color
+;dup bg-color
+;    grid-color
+;CHIP "FOO" NAME 5 COLOR 6 border-color
+;7 title-color 8 subtitle-color END
+;9 chip-color
+;10 wire-color
+;11 border-color
+;12 title-color
+;13 subtitle-color
+;14 bg-color
+;15 grid-color
+;red green blue white black
+;cyan magenta yellow 
+;gray40 gray80 grayC0 .s$
+;18 title-size                          ;fonts
+;12 subtitle-size
+;"monospace" font-name
 
+;Setup
+;=====
+2   MARGIN
+18  TITLE-SIZE
+14  SUBTITLE-SIZE
+14  LABEL-SIZE
+"monospace" FONT-NAME
+192 192 192 RGB TITLE-COLOR
+160 160 160 RGB SUBTITLE-COLOR
 
 
 ;Constants
 ;=========
 2 "SPACING" DEF
+SPACING 4 * "L2_SPACING" DEF    ;enough vertical spacing for two wire labels
+
 
 ;Chip sizes
 ;==========
+16 4 "74HC193" SIZE
+20 4 "74HC574" SIZE
 16 4 "74HC670" SIZE
+28 6 "32K EEPROM" SIZE      ;ie AT28C256
 
 ;Chip definitions
 ;================
-3 X 3 Y
+CHIP
+    "ALU Latch" NAME
+    "74HC574" MODEL
+    10 RIGHT
+    SPACING 3 * Y
+    CYAN BORDER-COLOR
+END
+
+CHIP
+    "ALU" NAME
+    "32K EEPROM" MODEL
+    LAST.BOTTOM L2_SPACING + Y
+    4 LEFT
+    CYAN BORDER-COLOR
+END
 
 CHIP
     "Regs HI"   NAME
     "74HC670"   MODEL
+    LAST.BOTTOM L2_SPACING + Y
+    3 LEFT
+    MAGENTA BORDER-COLOR
 END
 
 CHIP
     "Regs LO"   NAME
     "74HC670"   MODEL
-    last.right SPACING + X
+    LAST.RIGHT SPACING + X
+    MAGENTA BORDER-COLOR
+END
+
+CHIP
+    "Data Bus"  NAME
+    9 WIDTH 60 HEIGHT
+    REGS-LO.RIGHT SPACING 4 * + X 0 Y
 END
 
 
+RED BORDER-COLOR
 
+CHIP
+    "PC Bits 7-4"   NAME
+    "74HC193"       MODEL
+    DATA-BUS.RIGHT SPACING 4 * + X
+    SPACING 4 * Y
+END
+    
+CHIP
+    "PC Bits 3-0"   NAME
+    "74HC193"       MODEL
+    LAST.RIGHT SPACING + X
+END
+    
+CHIP
+    "Program ROM"   NAME
+    "32K EEPROM"    MODEL
+    PC-BITS-7-4.LEFT 3 + X
+    LAST.BOTTOM L2_SPACING + Y
+END
+
+CHIP
+    "PC Bits 14-12" NAME
+    "74HC193"       MODEL
+    PC-BITS-7-4.LEFT X
+    LAST.BOTTOM L2_SPACING + Y
+END
+
+CHIP
+    "PC Bits 11-8"  NAME
+    "74HC193"       MODEL
+    LAST.RIGHT SPACING + X
+END
+
+
+;Wires
+;=====
+;Wire colors
+128 0 128 RGB "REG_WIRE" DEF
+0 128 128 RGB "ALU_WIRE" DEF
+128 0 0 RGB "PROGRAM_ROM_WIRE" DEF
+
+;Reg LO to ALU
+WIRE
+    REG_WIRE COLOR
+    REGS-LO.X-CENTER X REGS-LO.TOP Y MARK
+    SPACING UP POINT
+    "Q3-Q0" LABEL
+    SPACING 2 * UP POINT
+    "A3-A0" LABEL
+    SPACING UP POINT
+END
+
+;Reg HI to ALU
+WIRE
+    REG_WIRE COLOR
+    REGS-HI.X-CENTER X REGS-HI.TOP Y MARK
+    SPACING UP POINT
+    "Q7-Q4" LABEL
+    SPACING 2 * UP POINT
+    "A7-A4" LABEL
+    SPACING UP POINT
+END
+
+;ALU to ALU latch
+WIRE
+    ALU_WIRE COLOR
+    ALU.X-CENTER X ALU.TOP Y MARK
+    SPACING UP POINT
+    "IO7-IO0" LABEL
+    SPACING 2 * UP POINT
+    "D7-D0" LABEL
+    SPACING UP POINT
+END
+
+;ALU output to data bus and PC
+WIRE
+    ALU_WIRE COLOR
+    ALU-LATCH.X-CENTER X
+    ALU-LATCH.TOP Y MARK
+    SPACING UP POINT
+    "Q7-Q0" LABEL
+    SPACING UP POINT
+    DATA-BUS.LEFT X POINT    
+END
+
+;PC to Program ROM
+PROGRAM_ROM_WIRE WIRE-COLOR
+WIRE
+    PC-BITS-3-0.BOTTOM Y
+    PC-BITS-3-0.X-CENTER X MARK
+    SPACING DOWN POINT
+    "Q3-Q0" LABEL
+    SPACING 2 * DOWN POINT
+    "A3-A0" LABEL
+    SPACING DOWN POINT
+END
+
+WIRE
+    PC-BITS-7-4.BOTTOM Y
+    PC-BITS-7-4.X-CENTER X MARK
+    SPACING DOWN POINT
+    "Q3-Q0" LABEL
+    SPACING DOWN POINT
+    PROGRAM-ROM.X-CENTER X POINT
+    SPACING DOWN POINT
+    "A7-A4" LABEL
+    SPACING DOWN POINT
+END
+
+WIRE
+    PC-BITS-11-8.TOP Y
+    PC-BITS-11-8.X-CENTER X MARK
+    SPACING UP POINT
+    "Q3-Q0" LABEL
+    SPACING 2 * UP POINT
+    "A11-A8" LABEL
+    SPACING UP POINT
+END
+
+WIRE
+    PC-BITS-14-12.TOP Y
+    PC-BITS-14-12.X-CENTER X MARK
+    SPACING UP POINT
+    "Q3-Q0" LABEL
+    SPACING UP POINT
+    PROGRAM-ROM.X-CENTER X POINT
+    SPACING UP POINT
+    "A14-A12" LABEL
+    SPACING UP POINT
+END
+
+;PC to data bus
+WIRE
+    PC-BITS-7-4.X-CENTER X
+    PC-BITS-7-4.TOP Y MARK
+    SPACING UP POINT
+    "D3-D0" LABEL
+    SPACING UP POINT
+    DATA-BUS.RIGHT X POINT
+END
+
+WIRE
+    PC-BITS-3-0.X-CENTER X
+    PC-BITS-3-0.TOP Y MARK
+    SPACING UP POINT
+    "D3-D0" LABEL
+    SPACING 2 * UP POINT
+    DATA-BUS.RIGHT X POINT
+END
