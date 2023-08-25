@@ -1,0 +1,35 @@
+2 MARGIN                ;Margin around schematic
+
+16 4 "74HC193" SIZE     ;Define sizes of chips used below
+20 4 "74HC244" SIZE
+
+BLUE BORDER-COLOR       ;Border color for new chips
+
+CHIP
+    "Foo" NAME
+    "74HC244" MODEL
+END
+
+CHIP
+    "Bar" NAME
+    "74HC193" MODEL
+    RED BORDER-COLOR
+    FOO.BOTTOM Y        ;Set Y of Bar to bottom edge of Foo
+    4 DOWN              ;Move Bar 4 squares down
+    LAST.RIGHT X        ;Set X to right edge of Foo ("LAST" refers to last chip)
+END
+
+0 128 0 RGB WIRE-COLOR  ;Wire color dark green
+
+WIRE
+    FOO.BOTTOM Y        ;Wire starts at bottom center of Foo
+    FOO.X-CENTER X MARK ;Mark beginning of wire
+    1 DOWN POINT        ;Go down 1 quare and draw a wire from last point
+    "Output" LABEL      ;Create a label called Output
+    BAR.Y-CENTER Y      ;Wire down to middle of Bar
+    POINT
+    BAR.LEFT X 2 LEFT   ;Wire right almost to Bar
+    POINT
+    "Input" LABEL
+    BAR.LEFT X POINT    ;Finish wire to Bar
+END

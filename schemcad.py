@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from sys import path, argv
+from math import ceil
 #from os.path import expanduser
 #path.append(expanduser("~/python/"))
 #from color import *
@@ -9,6 +10,7 @@ from sys import path, argv
 CHIP_BORDER_WIDTH=2
 GRID_LINE_WIDTH=1
 WIRE_WIDTH=2
+OUTPUT_FILE="./output.html"
 
 #Globals
 global_stack=[]
@@ -23,6 +25,7 @@ global_grid_pixels=10
 global_grid_margin=0
 global_wire_list=[]
 global_label_list=[]
+global_jump_list=[]
 global_colors={}
 global_max_right=2
 global_max_bottom=2
@@ -178,7 +181,7 @@ def exec_word(word):
         _,nos=global_stack.pop()
         min_obj=min(tos,nos)
         max_obj=max(tos,nos)
-        global_stack.append(min_obj+(max_obj-min_obj)/2)
+        global_stack.append(("number",min_obj+(max_obj-min_obj)/2))
     elif word=="int":
         check_args(word,1,[["number"]])
         _,tos=global_stack.pop()
@@ -274,9 +277,14 @@ def exec_word(word):
             global_y=global_element.y
             #Add to list of chips
             global_chips[chip_name]=global_element
-            global_element=None
         elif global_element.kind=="wire":
-            global_element=None
+            pass
+        if global_stack:
+            #Data left on stack - something is probably wrong
+            error_exit(f"finished {global_element.kind} block but data stack not empty:",False)
+            exec_word(".s")
+            exit(1)
+        global_element=None
     elif word in ["model","name","pkg"]:
         check_element(word)
         check_args(word,1,[["string"]])
@@ -329,13 +337,23 @@ def exec_word(word):
             error_exit(f"{word} not valid outside of wire definition")
         global_element.lastx=global_element.x
         global_element.lasty=global_element.y
-    elif word=="point":
+    elif word in ["point","ljump","rjump"]:
         if global_element==None or global_element.kind!="wire":
             error_exit(f"{word} not valid outside of wire definition")
         global_wire_list.append((global_element.color,(global_element.x,global_element.y),
             (global_element.lastx,global_element.lasty)))
         global_element.lastx=global_element.x
         global_element.lasty=global_element.y
+        global_max_right=max(global_element.x,global_max_right)
+        global_max_bottom=max(global_element.y,global_max_bottom)
+        if word=="ljump":
+            global_jump_list.append((global_element.color,(global_element.x,global_element.y),"left"))
+            global_element.x-=2
+            global_element.lastx-=2
+        elif word=="rjump":
+            global_jump_list.append((global_element.color,(global_element.x,global_element.y),"right"))
+            global_element.x+=2
+            global_element.lastx+=2
     elif word=="label":
         if global_element==None or global_element.kind!="wire":
             error_exit(f"{word} not valid outside of wire definition")
@@ -349,6 +367,19 @@ def exec_word(word):
         _,obj_height=global_stack.pop()
         _,obj_width=global_stack.pop()
         global_sizes[obj_name.upper()]=(obj_width,obj_height)
+    elif word=="pushxy":
+        check_element(word,"x")
+        check_element(word,"y")
+        global_stack.append(("number",global_element.x))
+        global_stack.append(("number",global_element.y))
+    elif word=="popxy":
+        check_element(word,"x")
+        check_element(word,"y")
+        check_args(word,2,[["number"],["number"]])
+        _,tos=global_stack.pop()
+        _,nos=global_stack.pop()
+        global_element.y=tos
+        global_element.x=nos
 
     #Color setting and grid words
     elif word=="rgb":
@@ -425,6 +456,7 @@ def check_args(word,arg_count,arg_types_list=()):
                 error_exit(f"expected types {arg_types} for argument {i+1} of {word} but found '{stack_arg_type}'")
 
     #Reached end of function without exiting - success
+    return
 
 #Check that currently in definition and that element being defined posseses attribute
 def check_element(word,attribute=""):
@@ -438,9 +470,10 @@ def check_element(word,attribute=""):
     #Reached end of function without exiting - success
 
 #Error exit function to be called from anywhere
-def error_exit(message):
+def error_exit(message,exit_program=True):
     print(f"Error in {argv[1]} on line {global_filenum+1} - {message}")
-    exit(1)
+    if exit_program:
+        exit(1)
 
 #Loop through lines in file and evaluate
 for global_filenum,line in enumerate(file_lines):
@@ -496,11 +529,11 @@ elif global_element!=None:
 
 #Output to SVG
 try:
-    with open("server/output.svg","wt") as f:
+    with open(OUTPUT_FILE,"wt") as f:
         #Just check file can be opened
         pass
 except:
-    print("Error: unable to open server/output.svg")
+    print(f"Error: unable to open {OUTPUT_FILE}")
     exit(1)
 
 def rgb_decomp(color):
@@ -509,8 +542,10 @@ def rgb_decomp(color):
     blue=color&0xFF
     return red,green,blue 
 
-with open("./server/output.html","wt") as f:
+with open(OUTPUT_FILE,"wt") as f:
     margin=global_grid_margin*global_grid_pixels
+    global_max_bottom=int(ceil(global_max_bottom))
+    global_max_right=int(ceil(global_max_right))
 
     #HTML boilerplate
     f.write("<!DOCTYPE html>\n")
@@ -524,9 +559,21 @@ with open("./server/output.html","wt") as f:
     f.write(f'width="{svg_width}" height="{svg_height}" ')
     r,g,b=rgb_decomp(global_colors["bg-color"])
     f.write(f'style="background-color:rgb({r},{g},{b})" ')
-    f.write(">\n")
-   
+    f.write(">\n\n")
+  
+    #Draw rectangle for background color when exporting to PNG
+    #Redundant but both Inkscape and ImageMagick are bugged :/
+    f.write('<!--Background rectangle-->\n')
+    f.write("<rect ")
+    f.write('x="0" y="0" ')
+    f.write(f'width="{svg_width}" ')
+    f.write(f'height="{svg_height}" ')
+    r,g,b=rgb_decomp(global_colors["bg-color"])
+    f.write(f'style="fill:rgb({r},{g},{b});" ')
+    f.write("/>\n\n")
+
     #Draw grid lines
+    f.write('<!--Grid lines-->\n')
     r,g,b=rgb_decomp(global_colors["grid-color"])
     line_color=f"rgb({r},{g},{b})"
     for i in range(global_max_bottom+global_grid_margin*2+1):
@@ -539,10 +586,11 @@ with open("./server/output.html","wt") as f:
         f.write(f'<line x1="{line_x}" y1="0" x2="{line_x}" y2="{svg_height}" ')
         f.write(f'style="stroke:{line_color};stroke-width:{GRID_LINE_WIDTH}" ')
         f.write('/>\n')
-     
-   #Draw chips
     f.write("\n")
+     
+    #Draw chips
     for name,chip in global_chips.items():
+        f.write(f'<!--Chip: {chip.name}-->\n')
         #Chip body
         f.write('<rect ') 
         f.write(f'x="{chip.x*global_grid_pixels+margin}" ')
@@ -558,7 +606,10 @@ with open("./server/output.html","wt") as f:
         #Chip title
         f.write('<text ')
         f.write(f'x="{int((chip.x+chip.width/2)*global_grid_pixels+margin)}" ')
-        f.write(f'y="{int((chip.y+chip.height/3)*global_grid_pixels+margin)}" ')
+        if chip.model:
+            f.write(f'y="{int((chip.y+chip.height/3)*global_grid_pixels+margin)}" ')
+        else:
+            f.write(f'y="{int((chip.y+chip.height/2)*global_grid_pixels+margin)}" ')
         f.write('dominant-baseline="middle" text-anchor="middle" ')
         r,g,b=rgb_decomp(chip.title_color)
         f.write(f'style="font: {global_title_size}px {global_font_name}; fill: rgb({r},{g},{b});" ')
@@ -566,18 +617,20 @@ with open("./server/output.html","wt") as f:
         f.write(f'{chip.name}')
         f.write("</text>\n")
         #Chip subtitle
-        f.write('<text ')
-        f.write(f'x="{int((chip.x+chip.width/2)*global_grid_pixels+margin)}" ')
-        f.write(f'y="{int((chip.y+chip.height/4*3)*global_grid_pixels+margin)}" ')
-        f.write('dominant-baseline="middle" text-anchor="middle" ')
-        r,g,b=rgb_decomp(chip.subtitle_color)
-        f.write(f'style="font: {global_subtitle_size}px {global_font_name}; fill: rgb({r},{g},{b});" ')
-        f.write(">\n")
-        f.write(f'{chip.model}')
-        f.write("</text>\n")
+        if chip.model:
+            f.write('<text ')
+            f.write(f'x="{int((chip.x+chip.width/2)*global_grid_pixels+margin)}" ')
+            f.write(f'y="{int((chip.y+chip.height/4*3)*global_grid_pixels+margin)}" ')
+            f.write('dominant-baseline="middle" text-anchor="middle" ')
+            r,g,b=rgb_decomp(chip.subtitle_color)
+            f.write(f'style="font: {global_subtitle_size}px {global_font_name}; fill: rgb({r},{g},{b});" ')
+            f.write(">\n")
+            f.write(f'{chip.model}')
+            f.write("</text>\n")
+        f.write('\n')
 
     #Draw wires
-    f.write("\n")
+    f.write("<!--Wires-->\n")
     for color,coords,coords2 in global_wire_list:
         f.write('<line ')
         f.write(f'x1="{coords[0]*global_grid_pixels+margin}" ')
@@ -587,9 +640,25 @@ with open("./server/output.html","wt") as f:
         r,g,b=rgb_decomp(color)
         f.write(f'style="stroke:rgb({r},{g},{b});stroke-width:{WIRE_WIDTH};" ')
         f.write('/>\n')
+    f.write('\n')
+
+    #Draw wire jumps
+    f.write("<!--Wire jumps-->\n")
+    for color,coords,direction in global_jump_list:
+        f.write(f'<path d="M {coords[0]*global_grid_pixels+margin} {coords[1]*global_grid_pixels+margin} ')
+        f.write(f'A{global_grid_pixels} {global_grid_pixels}, 0, 0, ')
+        if direction=="left":
+            f.write('0, ')
+            f.write(f'{(coords[0]-2)*global_grid_pixels+margin} {coords[1]*global_grid_pixels+margin}" ')
+        elif direction=="right":
+            f.write('1, ')
+            f.write(f'{(coords[0]+2)*global_grid_pixels+margin} {coords[1]*global_grid_pixels+margin}" ')
+        r,g,b=rgb_decomp(color)
+        f.write(f'stroke="rgb({r},{g},{b})" stroke-width="{WIRE_WIDTH}" fill="none" />\n')
+    f.write('\n')
 
     #Draw wire labels
-    f.write("\n")
+    f.write("<!--Wire labels-->\n")
     for color,coords,text in global_label_list:
         f.write('<text ')
         f.write(f'x="{int(coords[0]*global_grid_pixels+margin)}" ')
